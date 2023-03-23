@@ -1,5 +1,7 @@
+//import { buscador_gasolineras } from "../gasolineras.js";
+
 //Inicializar el mapa
-var map = L.map('map').setView([28.09973, -15.41343], 10);
+var map = L.map('map',{zoomControl: false}).setView([28.09973, -15.41343], 10);
 
 //Agregar el mapa
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -7,26 +9,13 @@ attribution: 'Map data © <a href="https://openstreetmap.org">OpenStreetMap</a> 
 maxZoom: 18
 }).addTo(map);
 
+L.control.zoom({position: "bottomright"}).addTo(map);
+
 //Crear capa de gasolineras vacia para agregar gasolineras encontradas
 var gasLayer = L.layerGroup().addTo(map);
 
 //Lista de marcadores
 var markers=[];
-
-//Gracias señor de https://stackoverflow.com/questions/23567203/leaflet-changing-marker-color por enseñarme como cambiar el color de un marker.
-//Un crack
-const greenIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41], // tamaño del icono
-    iconAnchor: [12, 41], // posición de anclaje
-    popupAnchor: [1, -34], // posición de la ventana emergente
-    shadowSize: [41, 41] // tamaño de la sombra
-});
-
-//Lista de marcadores filtrados
-var markersFiltrados=[]; 
-
 //Envio del formulario de busqueda de gasolineras
 document.getElementById('route-form').addEventListener('submit', function(e){
     e.preventDefault();//Prevenir el envio del formulario
@@ -41,12 +30,6 @@ document.getElementById('route-form').addEventListener('submit', function(e){
         map.removeLayer(markers[j]);
     }
 
-    for(let j=0; j<markersFiltrados.length;j++){
-        map.removeLayer(markersFiltrados[j]);
-    }
-
-   
-
 
 //Obtener los valores de los campos del formulario
 var gasType=document.getElementById('gas-type').value;
@@ -54,45 +37,7 @@ var gasType=document.getElementById('gas-type').value;
 //var destination=document.getElementById('destination').value;
 
 
-//Esto es la implementacion de la formula de Haversine.
-//Gracias chatGPT and señor@ de https://stackoverflow.com/questions/14560999/using-the-haversine-formula-in-javascript
 
-function calcularDistancia(lat1,lon1,lat2,lon2){
-    const R = 6371e3; // Radio medio de la Tierra en metros
-    const lat1Rad = lat1 * (Math.PI / 180);
-    const lat2Rad = lat2 * (Math.PI / 180);
-    const deltaLat = (lat2 - lat1) * (Math.PI / 180);
-    const deltaLon = (lon2 - lon1) * (Math.PI / 180);
-
-    const a =
-        Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-        Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c;
-}
-
-function filtrarPuntosCercanos(coords){
-    const distanciaSeparacionMinima=100;
-    
-    const resultado=[coords[0]];
-
-    for (let i = 1; i < coords.length - 1; i++) {
-        const lat1 = coords[i - 1][0];
-        const lon1 = coords[i - 1][1];
-        const lat2 = coords[i][0];
-        const lon2 = coords[i][1];
-    
-        const distancia = calcularDistancia(lat1, lon1, lat2, lon2);
-    
-        if (distancia >= distanciaSeparacionMinima) {
-          resultado.push(coords[i]);
-        }
-    }
-
-    resultado.push(coords[coords.length - 1]);
-    return resultado;
-}
 
 
 //Obtener las coordenadas de origen y destino utilizando la API de OpenStreetMap
@@ -130,13 +75,6 @@ fetch(origen_url)
                             return [coord[1], coord[0]];
                         });
 
-                        const coordsFiltradas=filtrarPuntosCercanos(coords);
-
-                        for (let i=0; i<coordsFiltradas.length; i++){
-                            markersFiltrados.push(L.marker([coordsFiltradas[i][0],coordsFiltradas[i][1]],{icon: greenIcon}).addTo(map));
-                            
-                        }
-                        
 
                         for (let i=0; i<coords.length; i++){
                             //var marker=L.marker([coords[i][0],coords[i][1]]).addTo(map);
@@ -146,8 +84,18 @@ fetch(origen_url)
                                 markers.push(L.circleMarker([coords[i][0],coords[i][1]],{ radius: 5}).addTo(map));
                             }
                             
-                        }                     
+                        }
                         
+                        buscador_gasolineras(1000,coords).then(function (result) {
+                            result.forEach(element => {
+                                let coordGasolinera = element.split(",");
+                                console.log(coordGasolinera);
+                                markers.push(L.marker([parseFloat(coordGasolinera[1]),parseFloat(coordGasolinera[0])]).addTo(map));
+                            });
+                        })
+                        
+                              
+
                     })
                     .catch(function(error){
                         console.log(error);
